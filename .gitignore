@@ -26,3 +26,6 @@ go.work.sum
 
 # Jetbrains IDE
 .idea
+
+# Arman version controll store
+.avc
