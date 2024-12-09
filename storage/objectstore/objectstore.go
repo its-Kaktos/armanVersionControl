@@ -4,6 +4,7 @@ import (
 	"armanVersionControl/hashing"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path"
 )
@@ -82,4 +83,34 @@ func FetchByHash(hash string) ([]byte, error) {
 	}
 
 	return rf, nil
+}
+
+func FetchAllObjectNames() ([]string, error) {
+	dir, err := os.ReadDir(objectDir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range dir {
+		if d.Type() != os.ModeDir {
+			return nil, errors.New("expcepted a dir but its not???")
+		}
+
+		subDir, err := os.ReadDir(path.Join(objectDir, d.Name()))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, sd := range subDir {
+			// TODO How to check if this sd is a file or dir?
+			if _, ok := sd.(os.FileMode); !ok {
+
+			}
+			i, err := sd.Info()
+			fmt.Printf("%v err: %v", i, err)
+			fmt.Printf("%v", sd)
+		}
+	}
+
+	return nil, nil
 }

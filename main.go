@@ -26,17 +26,18 @@ func main() {
 	}
 
 	//writeNew([]byte(input))
-	s, err := fetch(input)
-	if err != nil {
-		if errors.Is(err, objectstore.ErrObjectNotFound) {
-			fmt.Println("Object not found")
-			return
-		}
+	//if err != nil {
+	//	s, err := fetch(input)
+	//	if errors.Is(err, objectstore.ErrObjectNotFound) {
+	//		fmt.Println("Object not found")
+	//		return
+	//	}
+	//
+	//	panic(err)
+	//}
+	//fmt.Println("File content is:")
 
-		panic(err)
-	}
-	fmt.Println("File content is:")
-	fmt.Println(s)
+	objectstore.FetchAllObjectNames()
 
 	fmt.Println("+++++++DONE+++++++")
 }
