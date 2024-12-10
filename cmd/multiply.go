@@ -19,5 +19,5 @@ var multiplyCmd = &cobra.Command{
 
 func init() {
 	multiplyCmd.Flags().BoolVarP(&shouldRoundUp, "round", "r", false, "Round results up to 2 decimal places")
-	rootCmd.AddCommand(multiplyCmd)
+	RootCmd.AddCommand(multiplyCmd)
 }

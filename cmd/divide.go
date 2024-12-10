@@ -24,5 +24,5 @@ var divideCmd = &cobra.Command{
 
 func init() {
 	divideCmd.Flags().BoolVarP(&shouldRoundUp, "round", "r", false, "Round results up to 2 decimal places")
-	rootCmd.AddCommand(divideCmd)
+	RootCmd.AddCommand(divideCmd)
 }

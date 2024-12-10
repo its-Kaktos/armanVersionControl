@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:     "avc",
 	Aliases: []string{"kvc"},
 	Short:   "avc is a version control software",
@@ -19,7 +19,7 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "An error while executing avc '%s'\n", err)
 		os.Exit(1)
 	}
