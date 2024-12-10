@@ -3,8 +3,6 @@ package main
 import (
 	"armanVersionControl/cmd"
 	"armanVersionControl/storage/objectstore"
-	"errors"
-	"fmt"
 )
 
 func main() {
@@ -51,16 +49,16 @@ func fetch(hash string) (string, error) {
 	return string(file), nil
 }
 
-func writeNew(input []byte) {
-	err := objectstore.Store(input)
-
-	if err != nil {
-		if errors.Is(err, objectstore.ErrObjectAlreadyExists) {
-			fmt.Println("Error: an object with the provided content already exists")
-
-			return
-		}
-
-		panic(err)
-	}
-}
+//func writeNew(input []byte) {
+//	err := objectstore.Store(input)
+//
+//	if err != nil {
+//		if errors.Is(err, objectstore.ErrObjectAlreadyExists) {
+//			fmt.Println("Error: an object with the provided content already exists")
+//
+//			return
+//		}
+//
+//		panic(err)
+//	}
+//}

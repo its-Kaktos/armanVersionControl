@@ -33,22 +33,27 @@ func Init() error {
 	return mkdirAllIfDoesNotExists(mainDir, dirPerm)
 }
 
-func Store(content []byte) error {
+func Store(content []byte) (objectName string, error error) {
 	hashHexadecimal := hex.EncodeToString(hashing.Sha1(content))
 
 	dir := path.Join(objectDir, hashHexadecimal[:2])
 	fileName := hashHexadecimal[3:]
 
 	if err := mkdirAllIfDoesNotExists(dir, dirPerm); err != nil {
-		return err
+		return "", err
 	}
 
 	filePath := path.Join(dir, fileName)
 	if stat, err := os.Stat(filePath); stat != nil || os.IsExist(err) {
-		return ErrObjectAlreadyExists
+		return "", ErrObjectAlreadyExists
 	}
 
-	return os.WriteFile(filePath, content, filePerm)
+	err := os.WriteFile(filePath, content, filePerm)
+	if err != nil {
+		return "", err
+	}
+
+	return hashHexadecimal, err
 }
 
 func mkdirAllIfDoesNotExists(path string, perm os.FileMode) error {
