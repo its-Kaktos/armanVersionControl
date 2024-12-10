@@ -20,7 +20,7 @@ var RootCmd = &cobra.Command{
 
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "An error while executing avc '%s'\n", err)
+		fmt.Fprintf(os.Stderr, "An error occured: '%s'\n", err)
 		os.Exit(1)
 	}
 }
