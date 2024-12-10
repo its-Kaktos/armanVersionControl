@@ -101,15 +101,16 @@ func FetchAllObjectNames() ([]string, error) {
 			return nil, err
 		}
 
-		for _, sd := range subDir {
-			// TODO How to check if this sd is a file or dir?
-			if _, ok := sd.(os.FileMode); !ok {
-
-			}
-			i, err := sd.Info()
-			fmt.Printf("%v err: %v", i, err)
-			fmt.Printf("%v", sd)
-		}
+		fmt.Println(subDir)
+		//for _, sd := range subDir {
+		//	TODO How to check if this sd is a file or dir?
+		//if _, ok := sd.(os.FileMode); !ok {
+		//
+		//}
+		//i, err := sd.Info()
+		//fmt.Printf("%v err: %v", i, err)
+		//fmt.Printf("%v", sd)
+		//}
 	}
 
 	return nil, nil

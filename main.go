@@ -1,30 +1,28 @@
 package main
 
 import (
+	"armanVersionControl/cmd"
 	"armanVersionControl/storage/objectstore"
-	"bufio"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 )
 
 func main() {
-	fmt.Println("Write a string: ")
-
-	r := bufio.NewReader(os.Stdin)
-
-	input, err := r.ReadString('\n')
-	if err != nil {
-		panic(err)
-	}
-	input = strings.Replace(input, "\n", "", -1)
-
-	err = objectstore.Init()
-	if err != nil {
-		panic(err)
-	}
-
+	//fmt.Println("Write a string: ")
+	//
+	//r := bufio.NewReader(os.Stdin)
+	//
+	//input, err := r.ReadString('\n')
+	//if err != nil {
+	//	panic(err)
+	//}
+	//input = strings.Replace(input, "\n", "", -1)
+	//
+	//err = objectstore.Init()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
 	//writeNew([]byte(input))
 	//if err != nil {
 	//	s, err := fetch(input)
@@ -36,10 +34,12 @@ func main() {
 	//	panic(err)
 	//}
 	//fmt.Println("File content is:")
+	//
+	//objectstore.FetchAllObjectNames()
+	//
+	//fmt.Println("+++++++DONE+++++++")
 
-	objectstore.FetchAllObjectNames()
-
-	fmt.Println("+++++++DONE+++++++")
+	cmd.Execute()
 }
 
 func fetch(hash string) (string, error) {
