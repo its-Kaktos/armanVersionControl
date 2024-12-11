@@ -1,22 +1,24 @@
 package storage
 
 import (
+	"fmt"
 	"time"
 )
 
-// TODO In the future, we need some abstraction on file structures to have some similar functionality.
+const (
+	// currentCommitVersion represents the latest (current) version of Commit.
+	currentCommitVersion uint16 = 0
+	// currentCommitSignature represents the latest (current) signature of Commit.
+	currentCommitSignature uint16 = 300 + currentCommitVersion
+)
 
-// currentCommitVersion represents the latest (current) version of Commit.
-const currentCommitVersion uint16 = 0
-
-// currentCommitSignature represents the latest (current) signature of Commit.
-const currentCommitSignature uint16 = 100 + currentCommitVersion
+var currentCommitHeader = []byte(fmt.Sprintf("%v \u0000", currentCommitSignature))
 
 // Commit represents the structure of a basic commit.
-// The signature value of a Commit ranges from 100 to 199.
-// When a file's content starts with "100," it indicates that the file
+// The signature value of a Commit ranges from 300 to 399.
+// When a file's content starts with "300", it indicates that the file
 // is a simple commit. The remaining two digits represent the version
-// of the commit structure. For example, a Signature value of 121
+// of the commit structure. For example, a Signature value of 321
 // indicates that this file is a basic commit with a structure version of 21.
 type Commit struct {
 	// ParentHash represents the hash of the
@@ -33,14 +35,14 @@ type Commit struct {
 	CommiterEmail string
 	// CommitDate is the date when this commit was created
 	CommitDate time.Time
-	// Content represents the data of this commit, which can
-	// have its own structure.
-	Content []byte
+	// Tree represents the snapshot of the working directory
+	// when this commit was created.
+	Tree Tree
 }
 
 // IsCommit checks whether the signature is a Commit signature.
 func IsCommit(signature uint16) bool {
-	return signature >= 100 && signature <= 199
+	return signature >= 300 && signature <= 399
 }
 
 // IsRoot will check whether c is a root commit
@@ -50,7 +52,7 @@ func (c Commit) IsRoot() bool {
 
 // New will create a new Commit.
 func New(parentHash string, author string, authorEmail string, commiter string,
-	commiterEmail string, commitDate time.Time, content []byte) *Commit {
+	commiterEmail string, commitDate time.Time, tree Tree) *Commit {
 	return &Commit{
 		ParentHash:    parentHash,
 		Author:        author,
@@ -58,6 +60,6 @@ func New(parentHash string, author string, authorEmail string, commiter string,
 		Commiter:      commiter,
 		CommiterEmail: commiterEmail,
 		CommitDate:    commitDate,
-		Content:       content,
+		Tree:          tree,
 	}
 }
