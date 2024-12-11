@@ -12,6 +12,8 @@ var (
 	content  string
 	write    bool
 )
+
+// TODO update this Short and Long in the format of `catFileCmd`
 var hashObjectCmd = &cobra.Command{
 	Use:   "hash-object [-w | --write] { {--file-path | -f} | {--content | -c} }",
 	Short: "Computes the object ID value for a specified file path or provided content.",
