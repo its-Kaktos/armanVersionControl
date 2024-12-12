@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"armanVersionControl/storage"
 	"armanVersionControl/storage/objectstore"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -36,11 +37,12 @@ var hashObjectCmd = &cobra.Command{
 				return "", err
 			}
 
+			b := storage.Blob{Content: c}
 			if write {
-				return objectstore.Store(c)
+				return objectstore.Store(b.FileRepresent())
 			}
 
-			return objectstore.ComputeHash(c), nil
+			return objectstore.ComputeHash(b.FileRepresent()), nil
 		}()
 
 		if err != nil {

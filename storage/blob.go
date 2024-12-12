@@ -24,9 +24,13 @@ type Blob struct {
 	Content []byte
 }
 
-// IsBlob checks whether the signature is a Blob signature.
-func IsBlob(signature uint16) bool {
+// IsBlobS checks whether the signature is a Blob signature.
+func IsBlobS(signature uint16) bool {
 	return signature >= 100 && signature <= 199
+}
+
+func IsBlobC(content []byte) bool {
+	return slices.Equal(content[:5], currentBlobHeader)
 }
 
 func (b Blob) FileRepresent() []byte {

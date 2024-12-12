@@ -75,7 +75,7 @@ func Store(content []byte) (hash string, e error) {
 	hashHex := ComputeHash(content)
 
 	dir := path.Join(objectDir, hashHex[:2])
-	fileName := hashHex[3:]
+	fileName := hashHex[2:]
 	filePath := path.Join(dir, fileName)
 
 	ok, err = objectExists(path.Join(dir, fileName))
