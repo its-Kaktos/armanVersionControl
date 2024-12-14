@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"fmt"
 	"slices"
 )
@@ -8,11 +9,29 @@ import (
 const (
 	// currentBlobVersion represents the latest (current) version of Blob.
 	currentBlobVersion uint16 = 0
-	// currentBlobSignature represents the latest (current) signature of Blob.
-	currentBlobSignature = 100 + currentBlobVersion
+	// blobMagicNumber represents the Blob unique identifier.
+	blobMagicNumber uint16 = 100
 )
 
-var currentBlobHeader = []byte(fmt.Sprintf("%v \u0000", currentBlobSignature))
+// currentBlobSignature represents the latest (current) signature of Blob.
+var currentBlobSignature []byte
+
+// currentBlobHeader represents the first few bytes of the file representation of
+// a Blob. If any file starts with this header, we will know it's a Blob.
+var currentBlobHeader []byte
+
+func init() {
+	currentBlobSignature = make([]byte, 2)
+	// BigEndian is chosen because that is the network byte order
+	// and will save few bytes when storing it in the file. Plus
+	// that's how git represents numbers in the file as well.
+	_, err := binary.Encode(currentBlobSignature, binary.BigEndian, treeMagicNumber+currentTreeVersion)
+	if err != nil {
+		panic(err)
+	}
+
+	currentBlobHeader = []byte(fmt.Sprintf("%v \u0000", currentBlobSignature))
+}
 
 // Blob is a binary large object which represents the contents of file.
 // The signature value of a Blob ranges from 100 to 199.

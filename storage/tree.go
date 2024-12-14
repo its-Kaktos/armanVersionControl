@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 )
@@ -29,15 +30,37 @@ TODO
 - After all the above is done, create doc for it in the README.md and create new README
 	files if necessary.
 */
+
 const (
 	// currentTreeVersion represents the latest (current) version of Tree.
 	currentTreeVersion uint16 = 0
-	// currentTreeSignature represents the latest (current) signature of Tree.
-	currentTreeSignature uint16 = 200 + currentTreeVersion
+	// treeMagicNumber represents the Tree unique identifier.
+	treeMagicNumber = 200
 )
 
-// TODO have to convert this string into binary format and network byte order
-var currentTreeHeader = []byte(fmt.Sprintf("%v \u0000", currentTreeSignature))
+// currentTreeSignature represents the latest (current) signature of Tree.
+var currentTreeSignature []byte
+
+// currentTreeHeader represents the first few bytes of the file representation
+// of a Tree. If any file starts with this header, we will know it's a Tree.
+var currentTreeHeader []byte
+
+func init() {
+	currentTreeSignature = make([]byte, 2)
+	// BigEndian is chosen because that is the network byte order
+	// and will save few bytes when storing it in the file. Plus
+	// that's how git represents numbers in the file as well.
+	_, err := binary.Encode(currentTreeSignature, binary.BigEndian, treeMagicNumber+currentTreeVersion)
+	if err != nil {
+		panic(err)
+	}
+
+	// TODO fix this comment.
+	// Because go file var are initialized first and then init func is run,
+	// I cant put this line where the currentTreeHeader is located. Otherwise
+	// the treeSignature will be nil when currentTreeHeader is initialized.
+	currentTreeHeader = []byte(fmt.Sprintf("%v \u0000", currentTreeSignature))
+}
 
 // TreeEntry represents a single entry in a Tree structure.
 // Each entry can either be a subdirectory (Tree) or a file (Blob), but not
@@ -45,10 +68,10 @@ var currentTreeHeader = []byte(fmt.Sprintf("%v \u0000", currentTreeSignature))
 type TreeEntry struct {
 	// Kind specifies type of the entry.
 	Kind EntryKind
-	// Tree is a pointer to a Tree if Kind is KindTree, else is nil.
-	Tree *Tree
-	// Blob is a pointer to a Blob If Kind is KindBlob, else is nil.
-	Blob *Blob
+	// EntryHash is the hash of the Blob's or the Tree's.
+	EntryHash string
+	// NameSize represents the size of the Name in bytes.
+	NameSize uint16
 	// Name represents the file or directory name.
 	Name string
 	// CreatedDate represents the creation date time of a Blob or Tree.
