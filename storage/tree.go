@@ -1,8 +1,12 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"os"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -55,10 +59,11 @@ func init() {
 		panic(err)
 	}
 
-	// TODO fix this comment.
-	// Because go file var are initialized first and then init func is run,
-	// I cant put this line where the currentTreeHeader is located. Otherwise
-	// the treeSignature will be nil when currentTreeHeader is initialized.
+	// Since Go file-level variables are initialized before the init function,
+	// I can't place this line where currentTreeHeader is defined.
+	// Otherwise, currentTreeSignature will be nil when currentTreeHeader is initialized.
+	// git adds a null byte in the header before the content starts. I don't think I'll need it,
+	// but oh well, who cares if there's a null byte in the header even if I don't need it?
 	currentTreeHeader = []byte(fmt.Sprintf("%v \u0000", currentTreeSignature))
 }
 
@@ -68,10 +73,12 @@ func init() {
 type TreeEntry struct {
 	// Kind specifies type of the entry.
 	Kind EntryKind
+	// tree is accessible when Kind is KindTree
+	tree *Tree
+	// blob is accessible when Kind is KindBlob
+	blob *Blob
 	// EntryHash is the hash of the Blob's or the Tree's.
 	EntryHash string
-	// NameSize represents the size of the Name in bytes.
-	NameSize uint16
 	// Name represents the file or directory name.
 	Name string
 	// CreatedDate represents the creation date time of a Blob or Tree.
@@ -83,5 +90,110 @@ type TreeEntry struct {
 // Tree represents the structure of a directory and its files.
 // Each entry in Entries represents a subdirectory (Tree) or a file (Blob).
 type Tree struct {
+	// Hash represents Tree hash (AKA filename) that is stored in avc object store.
+	Hash string
+	// Entries contain directory files and subdirectories.
 	Entries []TreeEntry
+}
+
+// TODO after implementation, call this func and store the result in NewTreeeFromPath
+// TODO add doc
+func (t Tree) FileRepresent() ([]byte, error) {
+	var buf bytes.Buffer
+
+	buf.Write(currentTreeHeader)
+	buf.WriteRune('\n')
+
+	for _, te := range t.Entries {
+		err := binary.Write(&buf, binary.BigEndian, te.Kind)
+		if err != nil {
+			return nil, err
+		}
+
+		err = binary.Write(&buf, binary.BigEndian, len(te.EntryHash))
+		if err != nil {
+			return nil, err
+		}
+		buf.WriteString(te.EntryHash)
+
+		err = binary.Write(&buf, binary.BigEndian, len(te.Name))
+		if err != nil {
+			return nil, err
+		}
+		buf.WriteString(te.Name)
+
+		cd := te.CreatedDate.String()
+		err = binary.Write(&buf, binary.BigEndian, len(cd))
+		if err != nil {
+			return nil, err
+		}
+		buf.WriteString(cd)
+
+		md := te.ModifiedDate.String()
+		err = binary.Write(&buf, binary.BigEndian, len(md))
+		if err != nil {
+			return nil, err
+		}
+		buf.WriteString(md)
+
+		buf.WriteRune('\n')
+	}
+
+	return buf.Bytes(), nil
+}
+
+// TODO refacotre to not store all blobs and objects everytime this func is called, after that update the hash-object cmd docs
+// TODO add doc
+func NewTreeFromPath(name string) (Tree, error) {
+	dir, err := os.ReadDir(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Tree{}, nil
+		}
+
+		return Tree{}, err
+	}
+
+	tree := Tree{}
+	for _, d := range dir {
+		if strings.HasPrefix(d.Name(), ".") {
+			// Ignore hidden files and directories
+			continue
+		}
+
+		te := TreeEntry{
+			CreatedDate:  time.Now(),
+			ModifiedDate: time.Now(),
+		}
+
+		if d.Type().IsDir() {
+			t, err := NewTreeFromPath(path.Join(name, d.Name()))
+			if err != nil {
+				return Tree{}, err
+			}
+
+			te.Kind = KindTree
+			te.tree = &t
+
+			tree.Entries = append(tree.Entries, te)
+			continue
+		}
+
+		if !d.Type().IsRegular() {
+			return Tree{}, fmt.Errorf("directory entries should either be a directory or regualr file which '%v' does not follow", path.Join(name, d.Name()))
+		}
+
+		c, err := os.ReadFile(name)
+		if err != nil {
+			return Tree{}, err
+		}
+
+		te.Kind = KindBlob
+		te.Name = d.Name()
+		te.blob = &Blob{Content: c}
+
+		tree.Entries = append(tree.Entries, te)
+	}
+
+	return tree, nil
 }

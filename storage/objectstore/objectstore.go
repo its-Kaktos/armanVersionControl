@@ -63,6 +63,7 @@ func ComputeHash(content []byte) string {
 
 // Store will save content in the object database.
 func Store(content []byte) (hash string, e error) {
+	// TODO reuse blob or tree when hash exists
 	ok, err := existsMainDir()
 	if err != nil {
 		return "", err

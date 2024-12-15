@@ -40,6 +40,7 @@ func init() {
 // of the Blob structure. For example, a Signature value of 121
 // indicates that this file is a Blob with a structure version of 21.
 type Blob struct {
+	// Content represents the content to store in Blob.
 	Content []byte
 }
 
