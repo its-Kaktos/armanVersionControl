@@ -1,6 +1,14 @@
 # File structures
 
+## Blob
+A Blob is a regular file stored in the object store.
+A Blob file structure in high level will look like:
+* Blob header
+* File content
+
 ## Tree
+A Tree is a directory stored in the object store.
+Each Tree contain a list of TreeEntry which in turn can have a Tree or a Blob.
 A Tree file structure in high level will look like:
 * Tree header
 * Tree entries

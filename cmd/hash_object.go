@@ -27,13 +27,12 @@ Note:
       	Files or directories that start with a '.' AKA the hidden files and directories are ignored.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-
+		s, err := computeHashAndWriteIfFlag()
 		if err != nil {
 			return err
 		}
 
 		fmt.Println(s)
-
 		return nil
 	},
 }
@@ -46,52 +45,94 @@ func init() {
 	RootCmd.AddCommand(hashObjectCmd)
 }
 
-func computeHash() (string, error) {
-	c, err := computeContent()
-	if err != nil {
-		return "", err
-	}
-
-	b := storage.Blob{Content: c}
-	if write {
-		return objectstore.Store(b.FileRepresent())
-	}
-
-	return objectstore.ComputeHash(b.FileRepresent()), nil
-}
-
-// TODO fix this
-func computeAndStore() (, error) {
+// TODO maybe move these functions to another go file?
+func computeHashAndWriteIfFlag() (string, error) {
 	if content != "" {
-		return []byte(content), nil
+		if write {
+			return objectstore.StoreBlob(storage.Blob{Content: []byte(content)})
+		}
+
+		return objectstore.ComputeHash([]byte(content)), nil
 	}
 
 	if filePath == "" {
-		return nil, errors.New("content and filepath can not both be empty at the same time")
+		return "", errors.New("filePath can not be empty")
 	}
 
 	s, err := os.Stat(filePath)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if s.IsDir() {
-		t, err := storage.NewTreeFromPath(filePath)
+		t, err := computeTree(filePath)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
-		c, err := t.FileRepresent()
-		if err != nil {
-			return nil, err
+		if write {
+			return objectstore.StoreTree(&t)
 		}
 
-		return c, nil
+		b, err := t.FileRepresent()
+		if err != nil {
+			return "", err
+		}
+
+		return objectstore.ComputeHash(b), nil
 	}
 
 	if !s.Mode().IsRegular() {
-		return nil, fmt.Errorf("%v should be a directory or regular file path", filePath)
+		return "", fmt.Errorf("expected a regular file but got %+v", s)
 	}
 
-	return os.ReadFile(filePath)
+	b, err := computeBlob(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	if write {
+		return objectstore.StoreBlob(b)
+	}
+
+	return objectstore.ComputeHash(b.FileRepresent()), err
+}
+
+func computeBlob(fp string) (storage.Blob, error) {
+	if fp == "" {
+		return storage.Blob{}, errors.New("fp (file path) can not be empty")
+	}
+
+	s, err := os.Stat(filePath)
+	if err != nil {
+		return storage.Blob{}, err
+	}
+
+	if !s.Mode().IsRegular() {
+		return storage.Blob{}, fmt.Errorf("expected a regular file but got %+v", s)
+	}
+
+	c, err := os.ReadFile(filePath)
+	if err != nil {
+		return storage.Blob{}, err
+	}
+
+	return storage.Blob{Content: c}, nil
+}
+
+func computeTree(dirPath string) (storage.Tree, error) {
+	if dirPath == "" {
+		return storage.Tree{}, errors.New("filepath can not be empty")
+	}
+
+	s, err := os.Stat(dirPath)
+	if err != nil {
+		return storage.Tree{}, err
+	}
+
+	if !s.IsDir() {
+		return storage.Tree{}, fmt.Errorf("expected a dir but got %+v", s)
+	}
+
+	return storage.NewTreeFromPath(dirPath)
 }

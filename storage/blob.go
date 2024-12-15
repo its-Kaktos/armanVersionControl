@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"slices"
 )
@@ -13,12 +14,18 @@ const (
 	blobMagicNumber uint16 = 100
 )
 
-// currentBlobSignature represents the latest (current) signature of Blob.
-var currentBlobSignature []byte
+var (
+	// currentBlobSignature represents the latest (current) signature of Blob.
+	currentBlobSignature []byte
 
-// currentBlobHeader represents the first few bytes of the file representation of
-// a Blob. If any file starts with this header, we will know it's a Blob.
-var currentBlobHeader []byte
+	// currentBlobHeader represents the first few bytes of the file representation of
+	// a Blob. If any file starts with this header, we will know it's a Blob.
+	currentBlobHeader []byte
+)
+
+var (
+	ErrNotABlob = errors.New("not a valid Blob")
+)
 
 func init() {
 	currentBlobSignature = make([]byte, 2)
@@ -49,8 +56,16 @@ func IsBlobS(signature uint16) bool {
 	return signature >= 100 && signature <= 199
 }
 
-func IsBlobC(content []byte) bool {
-	return slices.Equal(content[:5], currentBlobHeader)
+// IsBlobB checks whether the content starts with the correct Blob
+// header (AKA signature).
+func IsBlobB(content []byte) bool {
+	if len(content) < len(currentBlobHeader) {
+		return false
+	}
+
+	b := content[:9]
+	return slices.Equal(b, currentBlobHeader) ||
+		IsBlobS(binary.BigEndian.Uint16(b[:len(currentBlobHeader)]))
 }
 
 func (b Blob) FileRepresent() []byte {
@@ -58,4 +73,12 @@ func (b Blob) FileRepresent() []byte {
 	// from currentBlobHeader. This prevents modifications to the returned slice
 	// from affecting currentBlobHeader.
 	return append(slices.Clone(currentBlobHeader), b.Content...)
+}
+
+func NewBlobFromB(b []byte) (Blob, error) {
+	if !IsBlobB(b) {
+		return Blob{}, ErrNotABlob
+	}
+
+	return Blob{Content: slices.Clone(b[len(currentBlobHeader):])}, nil
 }

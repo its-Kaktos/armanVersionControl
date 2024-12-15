@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"time"
 )
@@ -73,10 +74,10 @@ func init() {
 type TreeEntry struct {
 	// Kind specifies type of the entry.
 	Kind EntryKind
-	// tree is accessible when Kind is KindTree
-	tree *Tree
-	// blob is accessible when Kind is KindBlob
-	blob *Blob
+	// Tree is accessible when Kind is KindTree
+	Tree *Tree
+	// Blob is accessible when Kind is KindBlob
+	Blob *Blob
 	// EntryHash is the hash of the Blob's or the Tree's.
 	EntryHash string
 	// Name represents the file or directory name.
@@ -93,7 +94,24 @@ type Tree struct {
 	// Hash represents Tree hash (AKA filename) that is stored in avc object store.
 	Hash string
 	// Entries contain directory files and subdirectories.
-	Entries []TreeEntry
+	Entries []*TreeEntry
+}
+
+// IsTreeS checks whether the signature is a Tree signature.
+func IsTreeS(signature uint16) bool {
+	return signature >= 200 && signature <= 299
+}
+
+// IsTreeB checks whether the content starts with the correct Tree
+// header (AKA signature).
+func IsTreeB(content []byte) bool {
+	if len(content) < 5 {
+		return false
+	}
+
+	b := content[:5]
+	return slices.Equal(b, currentTreeHeader) ||
+		IsTreeS(binary.BigEndian.Uint16(b))
 }
 
 // TODO after implementation, call this func and store the result in NewTreeeFromPath
@@ -102,7 +120,6 @@ func (t Tree) FileRepresent() ([]byte, error) {
 	var buf bytes.Buffer
 
 	buf.Write(currentTreeHeader)
-	buf.WriteRune('\n')
 
 	for _, te := range t.Entries {
 		err := binary.Write(&buf, binary.BigEndian, te.Kind)
@@ -110,27 +127,27 @@ func (t Tree) FileRepresent() ([]byte, error) {
 			return nil, err
 		}
 
-		err = binary.Write(&buf, binary.BigEndian, len(te.EntryHash))
+		err = binary.Write(&buf, binary.BigEndian, int32(len(te.EntryHash)))
 		if err != nil {
 			return nil, err
 		}
 		buf.WriteString(te.EntryHash)
 
-		err = binary.Write(&buf, binary.BigEndian, len(te.Name))
+		err = binary.Write(&buf, binary.BigEndian, int32(len(te.Name)))
 		if err != nil {
 			return nil, err
 		}
 		buf.WriteString(te.Name)
 
 		cd := te.CreatedDate.String()
-		err = binary.Write(&buf, binary.BigEndian, len(cd))
+		err = binary.Write(&buf, binary.BigEndian, int32(len(cd)))
 		if err != nil {
 			return nil, err
 		}
 		buf.WriteString(cd)
 
 		md := te.ModifiedDate.String()
-		err = binary.Write(&buf, binary.BigEndian, len(md))
+		err = binary.Write(&buf, binary.BigEndian, int32(len(md)))
 		if err != nil {
 			return nil, err
 		}
@@ -173,9 +190,9 @@ func NewTreeFromPath(name string) (Tree, error) {
 			}
 
 			te.Kind = KindTree
-			te.tree = &t
+			te.Tree = &t
 
-			tree.Entries = append(tree.Entries, te)
+			tree.Entries = append(tree.Entries, &te)
 			continue
 		}
 
@@ -183,16 +200,16 @@ func NewTreeFromPath(name string) (Tree, error) {
 			return Tree{}, fmt.Errorf("directory entries should either be a directory or regualr file which '%v' does not follow", path.Join(name, d.Name()))
 		}
 
-		c, err := os.ReadFile(name)
+		c, err := os.ReadFile(path.Join(name, d.Name()))
 		if err != nil {
 			return Tree{}, err
 		}
 
 		te.Kind = KindBlob
 		te.Name = d.Name()
-		te.blob = &Blob{Content: c}
+		te.Blob = &Blob{Content: c}
 
-		tree.Entries = append(tree.Entries, te)
+		tree.Entries = append(tree.Entries, &te)
 	}
 
 	return tree, nil
