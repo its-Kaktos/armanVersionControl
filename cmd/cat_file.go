@@ -50,6 +50,10 @@ func init() {
 }
 
 func computeOriginalContent(b []byte) (string, error) {
+	if !prettyPrint {
+		return string(b), nil
+	}
+
 	if storage.IsBlobB(b) {
 		blob, err := storage.NewBlobFromB(b)
 		if err != nil {
@@ -65,7 +69,13 @@ func computeOriginalContent(b []byte) (string, error) {
 
 	// TODO do this for the Tree as well
 	if storage.IsTreeB(b) {
+		t, err := storage.NewTreeFromB(b)
+		if err != nil {
+			return "", err
+		}
 
+		// TODO create String method for Tree and use it here to return it
+		return t.String(), nil
 	}
 
 	return "", errors.New("invalid content, content should either be a Blob or a Tree")

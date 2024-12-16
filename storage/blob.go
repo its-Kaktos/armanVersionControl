@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"armanVersionControl/storage/objectstore"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -32,7 +33,7 @@ func init() {
 	// BigEndian is chosen because that is the network byte order
 	// and will save few bytes when storing it in the file. Plus
 	// that's how git represents numbers in the file as well.
-	_, err := binary.Encode(currentBlobSignature, binary.BigEndian, treeMagicNumber+currentTreeVersion)
+	_, err := binary.Encode(currentBlobSignature, binary.BigEndian, blobMagicNumber+currentBlobVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -81,4 +82,10 @@ func NewBlobFromB(b []byte) (Blob, error) {
 	}
 
 	return Blob{Content: slices.Clone(b[len(currentBlobHeader):])}, nil
+}
+
+// StoreBlob will store Blob in the avc object store.
+// Returns the hash of Blob when stored in avc repository.
+func (b Blob) StoreBlob() (string, error) {
+	return objectstore.Store(b.FileRepresent())
 }

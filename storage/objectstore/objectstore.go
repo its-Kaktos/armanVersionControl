@@ -2,7 +2,6 @@ package objectstore
 
 import (
 	"armanVersionControl/hashing"
-	"armanVersionControl/storage"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -57,7 +56,7 @@ func Init() error {
 }
 
 // store will save content in the object database.
-func store(content []byte) (hash string, e error) {
+func Store(content []byte) (hash string, e error) {
 	// TODO reuse blob or tree when hash exists
 	ok, err := existsMainDir()
 	if err != nil {
@@ -280,43 +279,4 @@ func objectExists(name string) (bool, error) {
 	}
 
 	return true, nil
-}
-
-// StoreTree will store Tree and all its Entries in the object store
-// and return the computed hash for Tree.
-func StoreTree(t *storage.Tree) (string, error) {
-	for _, te := range t.Entries {
-		if te.Kind == storage.KindTree {
-			h, err := StoreTree(te.Tree)
-			if err != nil {
-				return "", err
-			}
-
-			te.EntryHash = h
-			continue
-		}
-
-		if te.Kind != storage.KindBlob {
-			panic("A new unexpected kind detected.")
-		}
-
-		h, err := StoreBlob(*te.Blob)
-		if err != nil {
-			return "", err
-		}
-
-		te.EntryHash = h
-	}
-
-	b, err := t.FileRepresent()
-	if err != nil {
-		return "", err
-	}
-
-	return store(b)
-}
-
-// StoreBlob will store Blob in the avc object store.
-func StoreBlob(b storage.Blob) (string, error) {
-	return store(b.FileRepresent())
 }

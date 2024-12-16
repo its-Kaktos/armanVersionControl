@@ -49,7 +49,7 @@ func init() {
 func computeHashAndWriteIfFlag() (string, error) {
 	if content != "" {
 		if write {
-			return objectstore.StoreBlob(storage.Blob{Content: []byte(content)})
+			return storage.Blob{Content: []byte(content)}.StoreBlob()
 		}
 
 		return objectstore.ComputeHash([]byte(content)), nil
@@ -71,7 +71,7 @@ func computeHashAndWriteIfFlag() (string, error) {
 		}
 
 		if write {
-			return objectstore.StoreTree(&t)
+			return t.StoreTree()
 		}
 
 		b, err := t.FileRepresent()
@@ -92,7 +92,7 @@ func computeHashAndWriteIfFlag() (string, error) {
 	}
 
 	if write {
-		return objectstore.StoreBlob(b)
+		return b.StoreBlob()
 	}
 
 	return objectstore.ComputeHash(b.FileRepresent()), err

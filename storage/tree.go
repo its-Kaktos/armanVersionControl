@@ -1,8 +1,10 @@
 package storage
 
 import (
+	"armanVersionControl/storage/objectstore"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -43,12 +45,18 @@ const (
 	treeMagicNumber = 200
 )
 
-// currentTreeSignature represents the latest (current) signature of Tree.
-var currentTreeSignature []byte
+var (
+	// currentTreeSignature represents the latest (current) signature of Tree.
+	currentTreeSignature []byte
 
-// currentTreeHeader represents the first few bytes of the file representation
-// of a Tree. If any file starts with this header, we will know it's a Tree.
-var currentTreeHeader []byte
+	// currentTreeHeader represents the first few bytes of the file representation
+	// of a Tree. If any file starts with this header, we will know it's a Tree.
+	currentTreeHeader []byte
+)
+
+var (
+	ErrNotATree = errors.New("not a valid Tree")
+)
 
 func init() {
 	currentTreeSignature = make([]byte, 2)
@@ -74,10 +82,10 @@ func init() {
 type TreeEntry struct {
 	// Kind specifies type of the entry.
 	Kind EntryKind
-	// Tree is accessible when Kind is KindTree
-	Tree *Tree
-	// Blob is accessible when Kind is KindBlob
-	Blob *Blob
+	// tree is accessible when Kind is KindTree
+	tree *Tree
+	// blob is accessible when Kind is KindBlob
+	blob *Blob
 	// EntryHash is the hash of the Blob's or the Tree's.
 	EntryHash string
 	// Name represents the file or directory name.
@@ -87,6 +95,8 @@ type TreeEntry struct {
 	// ModifiedDate represents the last date time of when TreeEntry was changed.
 	ModifiedDate time.Time
 }
+
+// TODO add method called fetchTree and fetchBlob to fetch that object using Entry hash if the tree or blob field is null
 
 // Tree represents the structure of a directory and its files.
 // Each entry in Entries represents a subdirectory (Tree) or a file (Blob).
@@ -105,24 +115,72 @@ func IsTreeS(signature uint16) bool {
 // IsTreeB checks whether the content starts with the correct Tree
 // header (AKA signature).
 func IsTreeB(content []byte) bool {
-	if len(content) < 5 {
+	if len(content) < len(currentTreeHeader) {
 		return false
 	}
 
-	b := content[:5]
+	b := content[:len(currentTreeHeader)]
 	return slices.Equal(b, currentTreeHeader) ||
 		IsTreeS(binary.BigEndian.Uint16(b))
 }
 
+// TODO add doc
+func (te *TreeEntry) FetchTree() (Tree, error) {
+	if te.Kind != KindTree {
+		return Tree{}, fmt.Errorf("expected kind to be %v but got %v", KindTree, te.Kind)
+	}
+
+	if te.tree != nil {
+		return *te.tree, nil
+	}
+
+	tb, err := objectstore.FetchByHash(te.EntryHash)
+	if err != nil {
+		return Tree{}, err
+	}
+
+	t, err := NewTreeFromB(tb)
+	if err != nil {
+		return Tree{}, err
+	}
+
+	te.tree = &t
+	return t, nil
+}
+
+// TODO add doc
+func (te *TreeEntry) FetchBlob() (Blob, error) {
+	if te.Kind != KindBlob {
+		return Blob{}, fmt.Errorf("expected kind to be %v but got %v", KindBlob, te.Kind)
+	}
+
+	if te.blob != nil {
+		return *te.blob, nil
+	}
+
+	bb, err := objectstore.FetchByHash(te.EntryHash)
+	if err != nil {
+		return Blob{}, err
+	}
+
+	b, err := NewBlobFromB(bb)
+	if err != nil {
+		return Blob{}, err
+	}
+
+	te.blob = &b
+	return b, nil
+}
+
 // TODO after implementation, call this func and store the result in NewTreeeFromPath
 // TODO add doc
-func (t Tree) FileRepresent() ([]byte, error) {
+func (t *Tree) FileRepresent() ([]byte, error) {
 	var buf bytes.Buffer
 
 	buf.Write(currentTreeHeader)
 
 	for _, te := range t.Entries {
-		err := binary.Write(&buf, binary.BigEndian, te.Kind)
+		err := binary.Write(&buf, binary.BigEndian, int32(te.Kind))
 		if err != nil {
 			return nil, err
 		}
@@ -139,21 +197,25 @@ func (t Tree) FileRepresent() ([]byte, error) {
 		}
 		buf.WriteString(te.Name)
 
-		cd := te.CreatedDate.String()
+		cd, err := te.CreatedDate.MarshalText()
+		if err != nil {
+			return nil, err
+		}
 		err = binary.Write(&buf, binary.BigEndian, int32(len(cd)))
 		if err != nil {
 			return nil, err
 		}
-		buf.WriteString(cd)
+		buf.Write(cd)
 
-		md := te.ModifiedDate.String()
+		md, err := te.ModifiedDate.MarshalText()
+		if err != nil {
+			return nil, err
+		}
 		err = binary.Write(&buf, binary.BigEndian, int32(len(md)))
 		if err != nil {
 			return nil, err
 		}
-		buf.WriteString(md)
-
-		buf.WriteRune('\n')
+		buf.Write(md)
 	}
 
 	return buf.Bytes(), nil
@@ -190,7 +252,7 @@ func NewTreeFromPath(name string) (Tree, error) {
 			}
 
 			te.Kind = KindTree
-			te.Tree = &t
+			te.tree = &t
 
 			tree.Entries = append(tree.Entries, &te)
 			continue
@@ -207,10 +269,161 @@ func NewTreeFromPath(name string) (Tree, error) {
 
 		te.Kind = KindBlob
 		te.Name = d.Name()
-		te.Blob = &Blob{Content: c}
+		te.blob = &Blob{Content: c}
 
 		tree.Entries = append(tree.Entries, &te)
 	}
 
 	return tree, nil
+}
+
+// TODO add doc
+func NewTreeFromB(b []byte) (Tree, error) {
+	if !IsTreeB(b) {
+		return Tree{}, ErrNotATree
+	}
+	t := Tree{}
+
+	r := bytes.NewReader(b[len(currentTreeHeader):])
+
+	//pos := 0
+	for r.Len() > 0 {
+		te := TreeEntry{}
+
+		readBuf := func() ([]byte, error) {
+			countBuf := make([]byte, 4)
+			_, err := r.Read(countBuf)
+			if err != nil {
+				return nil, err
+			}
+
+			count := int32(binary.BigEndian.Uint32(countBuf))
+			buf := make([]byte, count)
+			_, err = r.Read(buf)
+			if err != nil {
+				return nil, err
+			}
+
+			return buf, nil
+		}
+
+		// Parsing Kind
+		intBuf := make([]byte, 4)
+		_, err := r.Read(intBuf)
+		if err != nil {
+			return Tree{}, err
+		}
+		te.Kind = EntryKind(int32(binary.BigEndian.Uint32(intBuf)))
+
+		// Parsing EntryHash
+		buf, err := readBuf()
+		if err != nil {
+			return Tree{}, err
+		}
+		te.EntryHash = string(buf)
+
+		// Parsing Name
+		buf, err = readBuf()
+		if err != nil {
+			return Tree{}, err
+		}
+		te.Name = string(buf)
+
+		// Parsing CreatedDate
+		buf, err = readBuf()
+		if err != nil {
+			return Tree{}, err
+		}
+		cd := time.Now()
+		err = cd.UnmarshalText(buf)
+		if err != nil {
+			return Tree{}, err
+		}
+		te.CreatedDate = cd
+
+		// Parsing ModifiedDate
+		buf, err = readBuf()
+		if err != nil {
+			return Tree{}, err
+		}
+		md := time.Now()
+		err = md.UnmarshalText(buf)
+		if err != nil {
+			return Tree{}, err
+		}
+		te.ModifiedDate = md
+
+		t.Entries = append(t.Entries, &te)
+	}
+
+	return t, nil
+}
+
+// StoreTree will store Tree and all its Entries in the object store
+// and return the computed hash for Tree.
+func (t *Tree) StoreTree() (string, error) {
+	for _, te := range t.Entries {
+		if te.Kind == KindTree {
+			teTree, err := te.FetchTree()
+			if err != nil {
+				return "", err
+			}
+
+			h, err := teTree.StoreTree()
+			if err != nil {
+				return "", err
+			}
+
+			te.EntryHash = h
+			continue
+		}
+
+		if te.Kind != KindBlob {
+			panic("A new unexpected kind detected.")
+		}
+
+		teBlob, err := te.FetchBlob()
+		if err != nil {
+			return "", err
+		}
+		h, err := teBlob.StoreBlob()
+		if err != nil {
+			return "", err
+		}
+
+		te.EntryHash = h
+	}
+
+	b, err := t.FileRepresent()
+	if err != nil {
+		return "", err
+	}
+
+	return objectstore.Store(b)
+}
+
+func (t *Tree) String() string {
+	var sb strings.Builder
+	sb.WriteString(t.Hash)
+	sb.WriteRune('\n')
+
+	for _, te := range t.Entries {
+		sb.WriteString(fmt.Sprintf("Kind: %v ", te.Kind))
+		sb.WriteString(fmt.Sprintf("Hash: %v ", te.EntryHash))
+		sb.WriteString(fmt.Sprintf("name: %v ", te.Name))
+		c, err := te.CreatedDate.MarshalText()
+		if err != nil {
+			panic(err)
+		}
+		sb.WriteString(fmt.Sprintf("created date: %v ", c))
+		m, err := te.ModifiedDate.MarshalText()
+		if err != nil {
+			panic(err)
+		}
+		sb.WriteString(fmt.Sprintf("modified date: %v ", m))
+
+		sb.WriteRune('\n')
+	}
+
+	return sb.String()
 }
