@@ -49,13 +49,13 @@ func init() {
 	RootCmd.AddCommand(catFileCmd)
 }
 
-func computeOriginalContent(b []byte) (string, error) {
+func computeOriginalContent(o objectstore.Object) (string, error) {
 	if !prettyPrint {
-		return string(b), nil
+		return string(o.Content), nil
 	}
 
-	if storage.IsBlobB(b) {
-		blob, err := storage.NewBlobFromB(b)
+	if storage.IsBlobB(o.Content) {
+		blob, err := storage.NewBlobFromB(o.Content)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotABlob) {
 				panic("expected a blob but the content is not a blob")
@@ -67,14 +67,12 @@ func computeOriginalContent(b []byte) (string, error) {
 		return string(blob.Content), nil
 	}
 
-	// TODO do this for the Tree as well
-	if storage.IsTreeB(b) {
-		t, err := storage.NewTreeFromB(b)
+	if storage.IsTreeB(o.Content) {
+		t, err := storage.NewTreeFromObject(o)
 		if err != nil {
 			return "", err
 		}
 
-		// TODO create String method for Tree and use it here to return it
 		return t.String(), nil
 	}
 

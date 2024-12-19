@@ -20,24 +20,6 @@ const (
 	KindBlob
 )
 
-// TODO have to change all these uint16 to binary representation when storing in the file
-// TODO calculate total header size and update README.md
-// TODO add content size to Tree and Blob
-/*
-TODO
-- How can I calculate the Struct size? Do I need to calculate it? I know that
-	when I need to store strings I need to know the size of that string to know
-	how far of the file content is for that string.
-- Add content size to a Blob and Tree for every Tree entry.
-- Should I store a single pointer that points either to a Blob or a Tree to avoid
-	having a null followed for Tree followed by a pointer to a Blob?
-- Also, when storing TreeEntry in a file, there would be no pointer, only a string that
-	stores the sha1 hash of a Tree or a Blob. Should I Change this?
-- Add a size for any string in Tree or Blob such as Name in the TreeEntry.
-- After all the above is done, create doc for it in the README.md and create new README
-	files if necessary.
-*/
-
 const (
 	// currentTreeVersion represents the latest (current) version of Tree.
 	currentTreeVersion uint16 = 0
@@ -96,8 +78,6 @@ type TreeEntry struct {
 	ModifiedDate time.Time
 }
 
-// TODO add method called fetchTree and fetchBlob to fetch that object using Entry hash if the tree or blob field is null
-
 // Tree represents the structure of a directory and its files.
 // Each entry in Entries represents a subdirectory (Tree) or a file (Blob).
 type Tree struct {
@@ -124,7 +104,8 @@ func IsTreeB(content []byte) bool {
 		IsTreeS(binary.BigEndian.Uint16(b))
 }
 
-// TODO add doc
+// FetchTree retrieves a Tree from the object database using the TreeEntry.EntryHash
+// and caches the result to prevent redundant calculations on subsequent calls.
 func (te *TreeEntry) FetchTree() (Tree, error) {
 	if te.Kind != KindTree {
 		return Tree{}, fmt.Errorf("expected kind to be %v but got %v", KindTree, te.Kind)
@@ -139,7 +120,7 @@ func (te *TreeEntry) FetchTree() (Tree, error) {
 		return Tree{}, err
 	}
 
-	t, err := NewTreeFromB(tb)
+	t, err := NewTreeFromObject(tb)
 	if err != nil {
 		return Tree{}, err
 	}
@@ -148,7 +129,8 @@ func (te *TreeEntry) FetchTree() (Tree, error) {
 	return t, nil
 }
 
-// TODO add doc
+// FetchBlob retrieves a Blob from the object database using the TreeEntry.EntryHash
+// and caches the result to prevent redundant calculation on subsequent calls.
 func (te *TreeEntry) FetchBlob() (Blob, error) {
 	if te.Kind != KindBlob {
 		return Blob{}, fmt.Errorf("expected kind to be %v but got %v", KindBlob, te.Kind)
@@ -158,12 +140,12 @@ func (te *TreeEntry) FetchBlob() (Blob, error) {
 		return *te.blob, nil
 	}
 
-	bb, err := objectstore.FetchByHash(te.EntryHash)
+	o, err := objectstore.FetchByHash(te.EntryHash)
 	if err != nil {
 		return Blob{}, err
 	}
 
-	b, err := NewBlobFromB(bb)
+	b, err := NewBlobFromB(o.Content)
 	if err != nil {
 		return Blob{}, err
 	}
@@ -172,8 +154,7 @@ func (te *TreeEntry) FetchBlob() (Blob, error) {
 	return b, nil
 }
 
-// TODO after implementation, call this func and store the result in NewTreeeFromPath
-// TODO add doc
+// FileRepresent will create a file representation of a Tree in binary format.
 func (t *Tree) FileRepresent() ([]byte, error) {
 	var buf bytes.Buffer
 
@@ -222,14 +203,13 @@ func (t *Tree) FileRepresent() ([]byte, error) {
 }
 
 // TODO refacotre to not store all blobs and objects everytime this func is called, after that update the hash-object cmd docs
-// TODO add doc
+
+// NewTreeFromPath creates a new Tree form a path but does not store the result
+// in object database. Because result is not stored in the database, there will be
+// no hash for the Tree or its TreeEntry.
 func NewTreeFromPath(name string) (Tree, error) {
 	dir, err := os.ReadDir(name)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return Tree{}, nil
-		}
-
 		return Tree{}, err
 	}
 
@@ -277,14 +257,14 @@ func NewTreeFromPath(name string) (Tree, error) {
 	return tree, nil
 }
 
-// TODO add doc
-func NewTreeFromB(b []byte) (Tree, error) {
-	if !IsTreeB(b) {
+// NewTreeFromObject creates a Tree from objectstore.Object.
+func NewTreeFromObject(o objectstore.Object) (Tree, error) {
+	if !IsTreeB(o.Content) {
 		return Tree{}, ErrNotATree
 	}
-	t := Tree{}
+	t := Tree{Hash: o.Hash}
 
-	r := bytes.NewReader(b[len(currentTreeHeader):])
+	r := bytes.NewReader(o.Content[len(currentTreeHeader):])
 
 	//pos := 0
 	for r.Len() > 0 {
@@ -404,8 +384,8 @@ func (t *Tree) StoreTree() (string, error) {
 
 func (t *Tree) String() string {
 	var sb strings.Builder
-	sb.WriteString(t.Hash)
-	sb.WriteRune('\n')
+	sb.WriteString(fmt.Sprintf("Tree hash: %v \n", t.Hash))
+	sb.WriteString(fmt.Sprintf("Tree entrieis:\n"))
 
 	for _, te := range t.Entries {
 		sb.WriteString(fmt.Sprintf("Kind: %v ", te.Kind))
@@ -415,12 +395,12 @@ func (t *Tree) String() string {
 		if err != nil {
 			panic(err)
 		}
-		sb.WriteString(fmt.Sprintf("created date: %v ", c))
+		sb.WriteString(fmt.Sprintf("created date: %v ", string(c)))
 		m, err := te.ModifiedDate.MarshalText()
 		if err != nil {
 			panic(err)
 		}
-		sb.WriteString(fmt.Sprintf("modified date: %v ", m))
+		sb.WriteString(fmt.Sprintf("modified date: %v ", string(m)))
 
 		sb.WriteRune('\n')
 	}

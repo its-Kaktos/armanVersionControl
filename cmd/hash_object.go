@@ -103,7 +103,7 @@ func computeBlob(fp string) (storage.Blob, error) {
 		return storage.Blob{}, errors.New("fp (file path) can not be empty")
 	}
 
-	s, err := os.Stat(filePath)
+	s, err := os.Stat(fp)
 	if err != nil {
 		return storage.Blob{}, err
 	}
@@ -112,7 +112,7 @@ func computeBlob(fp string) (storage.Blob, error) {
 		return storage.Blob{}, fmt.Errorf("expected a regular file but got %+v", s)
 	}
 
-	c, err := os.ReadFile(filePath)
+	c, err := os.ReadFile(fp)
 	if err != nil {
 		return storage.Blob{}, err
 	}

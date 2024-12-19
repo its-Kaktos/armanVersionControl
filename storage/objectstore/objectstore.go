@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -42,6 +43,14 @@ var (
 	filePerm  os.FileMode = 0770
 )
 
+// Object represents any data in the object database.
+type Object struct {
+	// Hash is the object hash stored in the object database.
+	Hash string
+	// Content is the content of the file stored in the object database.
+	Content []byte
+}
+
 // Init will initialize an empty avc repository.
 func Init() error {
 	ok, err := existsMainDir()
@@ -55,7 +64,7 @@ func Init() error {
 	return mkdirAllIfDoesNotExists(mainDir, dirPerm)
 }
 
-// store will save content in the object database.
+// Store will save content in the object database.
 func Store(content []byte) (hash string, e error) {
 	// TODO reuse blob or tree when hash exists
 	ok, err := existsMainDir()
@@ -122,47 +131,47 @@ func mkdirAllIfDoesNotExists(name string, perm os.FileMode) error {
 }
 
 // FetchByHash will fetch an object from object database by its hash.
-func FetchByHash(hash string) ([]byte, error) {
+func FetchByHash(hash string) (Object, error) {
 	ok, err := existsMainDir()
 	if err != nil {
-		return nil, err
+		return Object{}, err
 	}
 	if !ok {
-		return nil, ErrRepoNotInitialized
+		return Object{}, ErrRepoNotInitialized
 	}
 
 	if len(hash) < 2 {
-		return nil, ErrHashIsShort
+		return Object{}, ErrHashIsShort
 	}
 
 	dirName := hash[:2]
 	dirPath := path.Join(objectDir, dirName)
 	if _, err := os.Stat(dirPath); err != nil {
 		if os.IsNotExist(err) {
-			return nil, ErrObjectNotFound
+			return Object{}, ErrObjectNotFound
 		}
 
-		return nil, err
+		return Object{}, err
 	}
 
 	objectsInDir, err := fetchAllFileNamesInDir(dirPath)
 	if err != nil {
-		return nil, err
+		return Object{}, err
 	}
 	if len(objectsInDir) == 0 {
-		return nil, ErrObjectNotFound
+		return Object{}, ErrObjectNotFound
 	}
-	readFile := func(name string) ([]byte, error) {
+	readFile := func(name string) (Object, error) {
 		rf, err := os.ReadFile(name)
 		if err != nil {
 			if os.IsNotExist(err) {
-				return nil, ErrObjectNotFound
+				return Object{}, ErrObjectNotFound
 			}
 
-			return nil, err
+			return Object{}, err
 		}
 
-		return rf, nil
+		return Object{Hash: filepath.Base(name), Content: rf}, nil
 	}
 
 	prependToAll := func(co []string, s string) []string {
@@ -182,7 +191,7 @@ func FetchByHash(hash string) ([]byte, error) {
 			return readFile(path.Join(dirPath, objectsInDir[0]))
 		}
 
-		return nil, &HashCollisionError{Collisions: prependToAll(objectsInDir, dirName)}
+		return Object{}, &HashCollisionError{Collisions: prependToAll(objectsInDir, dirName)}
 	}
 
 	var candidates []string
@@ -193,11 +202,11 @@ func FetchByHash(hash string) ([]byte, error) {
 	}
 
 	if len(candidates) == 0 {
-		return nil, ErrObjectNotFound
+		return Object{}, ErrObjectNotFound
 	}
 
 	if len(candidates) > 1 {
-		return nil, &HashCollisionError{Collisions: prependToAll(candidates, dirName)}
+		return Object{}, &HashCollisionError{Collisions: prependToAll(candidates, dirName)}
 	}
 
 	return readFile(path.Join(dirPath, candidates[0]))
