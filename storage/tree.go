@@ -15,8 +15,12 @@ import (
 
 type EntryKind int32
 
+func (e EntryKind) String() string {
+	return []string{"KindTree", "KindBlob"}[e]
+}
+
 const (
-	KindTree = iota
+	KindTree EntryKind = iota
 	KindBlob
 )
 
@@ -177,32 +181,10 @@ func (t *Tree) FileRepresent() ([]byte, error) {
 			return nil, err
 		}
 		buf.WriteString(te.Name)
-
-		cd, err := te.CreatedDate.MarshalText()
-		if err != nil {
-			return nil, err
-		}
-		err = binary.Write(&buf, binary.BigEndian, int32(len(cd)))
-		if err != nil {
-			return nil, err
-		}
-		buf.Write(cd)
-
-		md, err := te.ModifiedDate.MarshalText()
-		if err != nil {
-			return nil, err
-		}
-		err = binary.Write(&buf, binary.BigEndian, int32(len(md)))
-		if err != nil {
-			return nil, err
-		}
-		buf.Write(md)
 	}
 
 	return buf.Bytes(), nil
 }
-
-// TODO refacotre to not store all blobs and objects everytime this func is called, after that update the hash-object cmd docs
 
 // NewTreeFromPath creates a new Tree form a path but does not store the result
 // in object database. Because result is not stored in the database, there will be
@@ -220,10 +202,7 @@ func NewTreeFromPath(name string) (Tree, error) {
 			continue
 		}
 
-		te := TreeEntry{
-			CreatedDate:  time.Now(),
-			ModifiedDate: time.Now(),
-		}
+		te := TreeEntry{Name: d.Name()}
 
 		if d.Type().IsDir() {
 			t, err := NewTreeFromPath(path.Join(name, d.Name()))
@@ -248,7 +227,6 @@ func NewTreeFromPath(name string) (Tree, error) {
 		}
 
 		te.Kind = KindBlob
-		te.Name = d.Name()
 		te.blob = &Blob{Content: c}
 
 		tree.Entries = append(tree.Entries, &te)
@@ -309,30 +287,6 @@ func NewTreeFromObject(o objectstore.Object) (Tree, error) {
 		}
 		te.Name = string(buf)
 
-		// Parsing CreatedDate
-		buf, err = readBuf()
-		if err != nil {
-			return Tree{}, err
-		}
-		cd := time.Now()
-		err = cd.UnmarshalText(buf)
-		if err != nil {
-			return Tree{}, err
-		}
-		te.CreatedDate = cd
-
-		// Parsing ModifiedDate
-		buf, err = readBuf()
-		if err != nil {
-			return Tree{}, err
-		}
-		md := time.Now()
-		err = md.UnmarshalText(buf)
-		if err != nil {
-			return Tree{}, err
-		}
-		te.ModifiedDate = md
-
 		t.Entries = append(t.Entries, &te)
 	}
 
@@ -379,7 +333,14 @@ func (t *Tree) StoreTree() (string, error) {
 		return "", err
 	}
 
-	return objectstore.Store(b)
+	h, err := objectstore.Store(b)
+	// Reuse the previous object of there is a duplicate error
+	var ode *objectstore.ObjectDuplicateError
+	if errors.As(err, &ode) {
+		return ode.Hash, nil
+	}
+
+	return h, err
 }
 
 func (t *Tree) String() string {

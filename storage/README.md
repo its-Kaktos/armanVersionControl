@@ -26,7 +26,7 @@ A Tree file structure in high level will look like:
 * EntryHash: string
 * NameSize: int32 // This field is generated when storing the Tree in a file
 * Name: string
-* CreatedDateSize: int32 // This field is generated when storing the Tree in a file
-* CreatedDate: string (representation of time.Time)
-* ModifiedDateSize: int32 // This field is generated when storing the Tree in a file
-* ModifiedDate: string
+
+## Note:
+Currently, I think the only place that needs created and modified date is in the 
+Index file.

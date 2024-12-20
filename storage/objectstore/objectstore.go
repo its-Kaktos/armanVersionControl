@@ -19,18 +19,28 @@ type HashCollisionError struct {
 	Collisions []string
 }
 
-func (h HashCollisionError) Error() string {
+func (h *HashCollisionError) Error() string {
 	if len(h.Collisions) == 0 {
-		return "Hash collision detected, but no possible collisions were provided."
+		return "hash collision detected, but no possible collisions were provided"
 	}
 
-	return fmt.Sprintf("Hash collision detected. Possible matches:\n%s", strings.Join(h.Collisions, "\n"))
+	return fmt.Sprintf("hash collision detected. Possible matches:\n%s", strings.Join(h.Collisions, "\n"))
+}
+
+// ObjectDuplicateError represents an error for when an object
+// with the same hash already exists in the object database.
+type ObjectDuplicateError struct {
+	// Hash is the object hash.
+	Hash string
+}
+
+func (o *ObjectDuplicateError) Error() string {
+	return fmt.Sprintf("object hash of %v already exists in the object database store", o.Hash)
 }
 
 var (
 	ErrRepoNotInitialized     = errors.New("not an avc repository")
 	ErrAlreadyInitialized     = errors.New("avc repository is already initialized")
-	ErrObjectAlreadyExists    = errors.New("object already exists")
 	ErrHashIsShort            = errors.New("provided hash is short, it should be at least 2 characters")
 	ErrObjectNotFound         = errors.New("object not found")
 	ErrDirectoryIsNotExpected = errors.New("directory is not expected in a directory of object database")
@@ -66,7 +76,6 @@ func Init() error {
 
 // Store will save content in the object database.
 func Store(content []byte) (hash string, e error) {
-	// TODO reuse blob or tree when hash exists
 	ok, err := existsMainDir()
 	if err != nil {
 		return "", err
@@ -88,7 +97,7 @@ func Store(content []byte) (hash string, e error) {
 	}
 
 	if ok {
-		return "", ErrObjectAlreadyExists
+		return "", &ObjectDuplicateError{Hash: hashHex}
 	}
 
 	if err = mkdirAllIfDoesNotExists(dir, dirPerm); err != nil {

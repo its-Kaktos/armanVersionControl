@@ -3,7 +3,6 @@ package cmd
 import "github.com/spf13/cobra"
 
 // TODO check if the passed path is in current avc repo
-// TODO use network byte order when storing files.
 // TODO before adding commit, add config to add author and commiter email
 
 var addCmd = &cobra.Command{

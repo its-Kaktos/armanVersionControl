@@ -15,16 +15,15 @@ var (
 	write    bool
 )
 
-// TODO update this Short and Long in the format of `catFileCmd`
 var hashObjectCmd = &cobra.Command{
 	Use:   "hash-object [-w | --write] { {--file-path | -f} | {--content | -c} }",
 	Short: "Computes the object ID value for a specified file path or provided content.",
 	Long: `Computes and reports the object ID value for a specified file path or provided content and optionally writes the resulting object into the object database.
 If the provided path is a directory path, will generate a tree for the directory and each directory and each file will be a blob in that tree.
+
 Note:
-	- Currently this command will NOT reuse currently stored trees or blobs, it will always generate a new tree or blob.
-	- If provided path is a directory path, this command will store every file and subdirectory in the object store ignoring the absence of -w flag.
-      	Files or directories that start with a '.' AKA the hidden files and directories are ignored.`,
+	- If a file or directory is added to object database more than once, the previous hash and object will be used.
+	- Files or directories that start with a '.' AKA the hidden files and directories are ignored.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		s, err := computeHashAndWriteIfFlag()

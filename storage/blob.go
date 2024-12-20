@@ -87,5 +87,14 @@ func NewBlobFromB(b []byte) (Blob, error) {
 // StoreBlob will store Blob in the avc object store.
 // Returns the hash of Blob when stored in avc repository.
 func (b Blob) StoreBlob() (string, error) {
-	return objectstore.Store(b.FileRepresent())
+	h, err := objectstore.Store(b.FileRepresent())
+
+	// If error is ObjectDuplicateError, reuse the previous
+	// object hash instead of creating a new object.
+	var ode *objectstore.ObjectDuplicateError
+	if errors.As(err, &ode) {
+		return ode.Hash, nil
+	}
+
+	return h, err
 }
