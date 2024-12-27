@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"armanVersionControl/storage"
-	"armanVersionControl/storage/objectstore"
+	"armanVersionControl/structures"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -48,10 +48,10 @@ func init() {
 func computeHashAndWriteIfFlag() (string, error) {
 	if content != "" {
 		if write {
-			return storage.Blob{Content: []byte(content)}.StoreBlob()
+			return structures.Blob{Content: []byte(content)}.StoreBlob()
 		}
 
-		return objectstore.ComputeHash([]byte(content)), nil
+		return storage.ComputeHash([]byte(content)), nil
 	}
 
 	if filePath == "" {
@@ -78,7 +78,7 @@ func computeHashAndWriteIfFlag() (string, error) {
 			return "", err
 		}
 
-		return objectstore.ComputeHash(b), nil
+		return storage.ComputeHash(b), nil
 	}
 
 	if !s.Mode().IsRegular() {
@@ -94,44 +94,44 @@ func computeHashAndWriteIfFlag() (string, error) {
 		return b.StoreBlob()
 	}
 
-	return objectstore.ComputeHash(b.FileRepresent()), err
+	return storage.ComputeHash(b.FileRepresent()), err
 }
 
-func computeBlob(fp string) (storage.Blob, error) {
+func computeBlob(fp string) (structures.Blob, error) {
 	if fp == "" {
-		return storage.Blob{}, errors.New("fp (file path) can not be empty")
+		return structures.Blob{}, errors.New("fp (file path) can not be empty")
 	}
 
 	s, err := os.Stat(fp)
 	if err != nil {
-		return storage.Blob{}, err
+		return structures.Blob{}, err
 	}
 
 	if !s.Mode().IsRegular() {
-		return storage.Blob{}, fmt.Errorf("expected a regular file but got %+v", s)
+		return structures.Blob{}, fmt.Errorf("expected a regular file but got %+v", s)
 	}
 
 	c, err := os.ReadFile(fp)
 	if err != nil {
-		return storage.Blob{}, err
+		return structures.Blob{}, err
 	}
 
-	return storage.Blob{Content: c}, nil
+	return structures.Blob{Content: c}, nil
 }
 
-func computeTree(dirPath string) (storage.Tree, error) {
+func computeTree(dirPath string) (structures.Tree, error) {
 	if dirPath == "" {
-		return storage.Tree{}, errors.New("filepath can not be empty")
+		return structures.Tree{}, errors.New("filepath can not be empty")
 	}
 
 	s, err := os.Stat(dirPath)
 	if err != nil {
-		return storage.Tree{}, err
+		return structures.Tree{}, err
 	}
 
 	if !s.IsDir() {
-		return storage.Tree{}, fmt.Errorf("expected a dir but got %+v", s)
+		return structures.Tree{}, fmt.Errorf("expected a dir but got %+v", s)
 	}
 
-	return storage.NewTreeFromPath(dirPath)
+	return structures.NewTreeFromPath(dirPath)
 }

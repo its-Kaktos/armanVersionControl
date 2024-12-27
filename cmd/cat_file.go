@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"armanVersionControl/storage"
-	"armanVersionControl/storage/objectstore"
+	"armanVersionControl/structures"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -18,15 +18,8 @@ Arguments:
     hash		The required hash representing the object ID stored in object database.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		//content, err := objectstore.FetchByHash(args[0])
-		//if err != nil {
-		//	return err
-		//}
-		//
-		//fmt.Println(string(content))
-		//return nil
 		hash := args[0]
-		c, err := objectstore.FetchByHash(hash)
+		c, err := storage.FetchByHash(hash)
 		if err != nil {
 			return err
 		}
@@ -49,15 +42,15 @@ func init() {
 	RootCmd.AddCommand(catFileCmd)
 }
 
-func computeOriginalContent(o objectstore.Object) (string, error) {
+func computeOriginalContent(o storage.Object) (string, error) {
 	if !prettyPrint {
 		return string(o.Content), nil
 	}
 
-	if storage.IsBlobB(o.Content) {
-		blob, err := storage.NewBlobFromB(o.Content)
+	if structures.IsBlobB(o.Content) {
+		blob, err := structures.NewBlobFromB(o.Content)
 		if err != nil {
-			if errors.Is(err, storage.ErrNotABlob) {
+			if errors.Is(err, structures.ErrNotABlob) {
 				panic("expected a blob but the content is not a blob")
 			}
 
@@ -67,8 +60,8 @@ func computeOriginalContent(o objectstore.Object) (string, error) {
 		return string(blob.Content), nil
 	}
 
-	if storage.IsTreeB(o.Content) {
-		t, err := storage.NewTreeFromObject(o)
+	if structures.IsTreeB(o.Content) {
+		t, err := structures.NewTreeFromObject(o)
 		if err != nil {
 			return "", err
 		}

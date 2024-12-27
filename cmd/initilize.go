@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"armanVersionControl/storage/objectstore"
+	"armanVersionControl/storage"
 	"fmt"
 	"github.com/spf13/cobra"
 )
@@ -12,7 +12,7 @@ var initCmd = &cobra.Command{
 	Long:  "Creates an empty Arman version control repository",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := objectstore.Init(); err != nil {
+		if err := storage.Init(); err != nil {
 			return err
 		}
 

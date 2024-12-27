@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"armanVersionControl/storage/objectstore"
+	"armanVersionControl/storage"
 	"fmt"
 	"github.com/spf13/cobra"
 )
@@ -12,7 +12,7 @@ var logCmd = &cobra.Command{
 	Long:  "Currently prints all objects stored in object database.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		all, err := objectstore.FetchAllObjectNames()
+		all, err := storage.FetchAllObjectNames()
 		if err != nil {
 			return err
 		}

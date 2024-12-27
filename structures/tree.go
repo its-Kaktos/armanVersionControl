@@ -1,7 +1,7 @@
-package storage
+package structures
 
 import (
-	"armanVersionControl/storage/objectstore"
+	"armanVersionControl/storage"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -119,7 +119,7 @@ func (te *TreeEntry) FetchTree() (Tree, error) {
 		return *te.tree, nil
 	}
 
-	tb, err := objectstore.FetchByHash(te.EntryHash)
+	tb, err := storage.FetchByHash(te.EntryHash)
 	if err != nil {
 		return Tree{}, err
 	}
@@ -144,7 +144,7 @@ func (te *TreeEntry) FetchBlob() (Blob, error) {
 		return *te.blob, nil
 	}
 
-	o, err := objectstore.FetchByHash(te.EntryHash)
+	o, err := storage.FetchByHash(te.EntryHash)
 	if err != nil {
 		return Blob{}, err
 	}
@@ -236,7 +236,7 @@ func NewTreeFromPath(name string) (Tree, error) {
 }
 
 // NewTreeFromObject creates a Tree from objectstore.Object.
-func NewTreeFromObject(o objectstore.Object) (Tree, error) {
+func NewTreeFromObject(o storage.Object) (Tree, error) {
 	if !IsTreeB(o.Content) {
 		return Tree{}, ErrNotATree
 	}
@@ -333,9 +333,9 @@ func (t *Tree) StoreTree() (string, error) {
 		return "", err
 	}
 
-	h, err := objectstore.Store(b)
+	h, err := storage.Store(b)
 	// Reuse the previous object of there is a duplicate error
-	var ode *objectstore.ObjectDuplicateError
+	var ode *storage.ObjectDuplicateError
 	if errors.As(err, &ode) {
 		return ode.Hash, nil
 	}

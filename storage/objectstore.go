@@ -1,4 +1,4 @@
-package objectstore
+package storage
 
 import (
 	"armanVersionControl/hashing"
@@ -39,17 +39,13 @@ func (o *ObjectDuplicateError) Error() string {
 }
 
 var (
-	ErrRepoNotInitialized     = errors.New("not an avc repository")
-	ErrAlreadyInitialized     = errors.New("avc repository is already initialized")
 	ErrHashIsShort            = errors.New("provided hash is short, it should be at least 2 characters")
 	ErrObjectNotFound         = errors.New("object not found")
 	ErrDirectoryIsNotExpected = errors.New("directory is not expected in a directory of object database")
 )
 
 var (
-	mainDir               = ".avc"
-	objectDir             = path.Join(mainDir, "objects")
-	dirPerm   os.FileMode = 0777
+	objectDir             = path.Join(MainDir, "objects")
 	filePerm  os.FileMode = 0770
 )
 
@@ -61,22 +57,9 @@ type Object struct {
 	Content []byte
 }
 
-// Init will initialize an empty avc repository.
-func Init() error {
-	ok, err := existsMainDir()
-	if err != nil {
-		return err
-	}
-	if ok {
-		return ErrAlreadyInitialized
-	}
-
-	return mkdirAllIfDoesNotExists(mainDir, dirPerm)
-}
-
 // Store will save content in the object database.
 func Store(content []byte) (hash string, e error) {
-	ok, err := existsMainDir()
+	ok, err := ExistsMainDir()
 	if err != nil {
 		return "", err
 	}
@@ -118,30 +101,9 @@ func ComputeHash(content []byte) string {
 	return hex.EncodeToString(hashing.Sha1(content))
 }
 
-// existsMainDir will check if the .avc directory exists
-func existsMainDir() (bool, error) {
-	_, err := os.Stat(mainDir)
-	if err != nil && os.IsNotExist(err) {
-		return false, nil
-	}
-
-	return true, err
-}
-
-// mkdirAllIfDoesNotExists will make directories if they do not exist
-// in path of name with the provided perm as directory permission.
-func mkdirAllIfDoesNotExists(name string, perm os.FileMode) error {
-	_, err := os.Stat(name)
-	if err != nil && os.IsNotExist(err) {
-		return os.MkdirAll(name, perm)
-	}
-
-	return err
-}
-
 // FetchByHash will fetch an object from object database by its hash.
 func FetchByHash(hash string) (Object, error) {
-	ok, err := existsMainDir()
+	ok, err := ExistsMainDir()
 	if err != nil {
 		return Object{}, err
 	}
@@ -223,7 +185,7 @@ func FetchByHash(hash string) (Object, error) {
 
 // FetchAllObjectNames will fetch all object names from object database.
 func FetchAllObjectNames() ([]string, error) {
-	ok, err := existsMainDir()
+	ok, err := ExistsMainDir()
 	if err != nil {
 		return nil, err
 	}

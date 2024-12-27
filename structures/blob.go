@@ -1,7 +1,7 @@
-package storage
+package structures
 
 import (
-	"armanVersionControl/storage/objectstore"
+	"armanVersionControl/storage"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -87,11 +87,11 @@ func NewBlobFromB(b []byte) (Blob, error) {
 // StoreBlob will store Blob in the avc object store.
 // Returns the hash of Blob when stored in avc repository.
 func (b Blob) StoreBlob() (string, error) {
-	h, err := objectstore.Store(b.FileRepresent())
+	h, err := storage.Store(b.FileRepresent())
 
 	// If error is ObjectDuplicateError, reuse the previous
 	// object hash instead of creating a new object.
-	var ode *objectstore.ObjectDuplicateError
+	var ode *storage.ObjectDuplicateError
 	if errors.As(err, &ode) {
 		return ode.Hash, nil
 	}

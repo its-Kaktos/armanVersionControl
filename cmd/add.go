@@ -1,6 +1,10 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"armanVersionControl/track"
+	"fmt"
+	"github.com/spf13/cobra"
+)
 
 // TODO check if the passed path is in current avc repo
 // TODO before adding commit, add config to add author and commiter email
@@ -17,6 +21,12 @@ Notes:
 	need to be indexed again.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		name := args[0]
+		if err := track.Add(name); err != nil {
+			return err
+		}
+
+		fmt.Printf("%v added to index successfully.\n", name)
 		return nil
 	},
 }
